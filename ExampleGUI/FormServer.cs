@@ -7,12 +7,13 @@ using System.Linq;
 using System.Text;
 using System.Windows.Forms;
 using NamedPipeWrapper;
+using NamedPipeWrapper.IO;
 
 namespace ExampleGUI
 {
     public partial class FormServer : Form
     {
-        private readonly NamedPipeServer<string> _server = new NamedPipeServer<string>(Constants.PIPE_NAME);
+        private readonly NamedPipeServer<string> _server = new NamedPipeServer<string>(Constants.PIPE_NAME, new BinaryFormatterSerializer<string>());
         private readonly ISet<string> _clients = new HashSet<string>();
 
         public FormServer()

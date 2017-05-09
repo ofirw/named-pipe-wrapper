@@ -8,6 +8,7 @@ using NamedPipeWrapper;
 using log4net.Appender;
 using log4net.Config;
 using log4net.Layout;
+using NamedPipeWrapper.IO;
 
 namespace UnitTests
 {
@@ -53,8 +54,9 @@ namespace UnitTests
             _barrier.Reset();
             _exceptions.Clear();
 
-            _server = new NamedPipeServer<TestCollection>(PipeName);
-            _client = new NamedPipeClient<TestCollection>(PipeName);
+            var serializer = new BinaryFormatterSerializer<TestCollection>();
+            _server = new NamedPipeServer<TestCollection>(PipeName, serializer);
+            _client = new NamedPipeClient<TestCollection>(PipeName, serializer);
 
             _expectedData = null;
             _expectedHash = 0;

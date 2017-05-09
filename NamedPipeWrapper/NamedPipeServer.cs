@@ -16,8 +16,9 @@ namespace NamedPipeWrapper
         /// Constructs a new <c>NamedPipeServer</c> object that listens for client connections on the given <paramref name="pipeName"/>.
         /// </summary>
         /// <param name="pipeName">Name of the pipe to listen on</param>
-        public NamedPipeServer(string pipeName)
-            : base(pipeName, null)
+        /// <param name="serializer"></param>
+        public NamedPipeServer(string pipeName, ISerializer<TReadWrite> serializer)
+            : base(pipeName, null, serializer, serializer)
         {
         }
 
@@ -25,8 +26,8 @@ namespace NamedPipeWrapper
         /// Constructs a new <c>NamedPipeServer</c> object that listens for client connections on the given <paramref name="pipeName"/>.
         /// </summary>
         /// <param name="pipeName">Name of the pipe to listen on</param>
-        public NamedPipeServer(string pipeName, PipeSecurity pipeSecurity)
-            : base(pipeName, pipeSecurity)
+        public NamedPipeServer(string pipeName, PipeSecurity pipeSecurity, ISerializer<TReadWrite> serializer)
+            : base(pipeName, pipeSecurity, serializer, serializer)
         {
         }
     }
@@ -62,6 +63,8 @@ namespace NamedPipeWrapper
 
         private readonly string _pipeName;
         private readonly PipeSecurity _pipeSecurity;
+        private readonly ISerializer<TRead> deserializer;
+        private readonly ISerializer<TWrite> serializer;
         private readonly List<NamedPipeConnection<TRead, TWrite>> _connections = new List<NamedPipeConnection<TRead, TWrite>>();
 
         private int _nextPipeId;
@@ -73,10 +76,14 @@ namespace NamedPipeWrapper
         /// Constructs a new <c>NamedPipeServer</c> object that listens for client connections on the given <paramref name="pipeName"/>.
         /// </summary>
         /// <param name="pipeName">Name of the pipe to listen on</param>
-        public Server(string pipeName, PipeSecurity pipeSecurity)
+        /// <param name="pipeSecurity"></param>
+        /// <param name="serializer"></param>
+        public Server(string pipeName, PipeSecurity pipeSecurity, ISerializer<TRead> deserializer, ISerializer<TWrite> serializer)
         {
             _pipeName = pipeName;
             _pipeSecurity = pipeSecurity;
+            this.deserializer = deserializer;
+            this.serializer = serializer;
         }
 
         /// <summary>
@@ -142,7 +149,7 @@ namespace NamedPipeWrapper
             // If background thread is still listening for a client to connect,
             // initiate a dummy connection that will allow the thread to exit.
             //dummy connection will use the local server name.
-            var dummyClient = new NamedPipeClient<TRead, TWrite>(_pipeName, ".");
+            var dummyClient = new NamedPipeClient<TRead, TWrite>(_pipeName, ".", this.deserializer, this.serializer);
             dummyClient.Start();
             dummyClient.WaitForConnection(TimeSpan.FromSeconds(2));
             dummyClient.Stop();
@@ -173,7 +180,8 @@ namespace NamedPipeWrapper
             {
                 // Send the client the name of the data pipe to use
                 handshakePipe = PipeServerFactory.CreateAndConnectPipe(pipeName, pipeSecurity);
-                var handshakeWrapper = new PipeStreamWrapper<string, string>(handshakePipe);
+                var stringSerializer = new BinaryFormatterSerializer<string>();
+                var handshakeWrapper = new PipeStreamWrapper<string, string>(handshakePipe, stringSerializer, stringSerializer);
                 handshakeWrapper.WriteObject(connectionPipeName);
                 handshakeWrapper.WaitForPipeDrain();
                 handshakeWrapper.Close();
@@ -183,7 +191,7 @@ namespace NamedPipeWrapper
                 dataPipe.WaitForConnection();
 
                 // Add the client's connection to the list of connections
-                connection = ConnectionFactory.CreateConnection<TRead, TWrite>(dataPipe);
+                connection = ConnectionFactory.CreateConnection<TRead, TWrite>(dataPipe, this.deserializer, this.serializer);
                 connection.ReceiveMessage += ClientOnReceiveMessage;
                 connection.Disconnected += ClientOnDisconnected;
                 connection.Error += ConnectionOnError;

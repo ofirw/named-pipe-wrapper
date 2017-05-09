@@ -19,7 +19,8 @@ namespace NamedPipeWrapper.IO
         /// Constructs a new <c>PipeStreamWrapper</c> object that reads from and writes to the given <paramref name="stream"/>.
         /// </summary>
         /// <param name="stream">Stream to read from and write to</param>
-        public PipeStreamWrapper(PipeStream stream) : base(stream)
+        /// <param name="serializer">used for serialization and de-serialization</param>
+        public PipeStreamWrapper(PipeStream stream, ISerializer<TReadWrite> serializer) : base(stream, serializer, serializer)
         {
         }
     }
@@ -78,11 +79,13 @@ namespace NamedPipeWrapper.IO
         /// Constructs a new <c>PipeStreamWrapper</c> object that reads from and writes to the given <paramref name="stream"/>.
         /// </summary>
         /// <param name="stream">Stream to read from and write to</param>
-        public PipeStreamWrapper(PipeStream stream)
+        /// <param name="deserializer"></param>
+        /// <param name="serializer"></param>
+        public PipeStreamWrapper(PipeStream stream, ISerializer<TRead> deserializer, ISerializer<TWrite> serializer)
         {
             BaseStream = stream;
-            _reader = new PipeStreamReader<TRead>(BaseStream);
-            _writer = new PipeStreamWriter<TWrite>(BaseStream);
+            _reader = new PipeStreamReader<TRead>(BaseStream, deserializer);
+            _writer = new PipeStreamWriter<TWrite>(BaseStream, serializer);
         }
 
         /// <summary>

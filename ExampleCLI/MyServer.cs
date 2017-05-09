@@ -1,5 +1,6 @@
 ﻿using System;
 using NamedPipeWrapper;
+using NamedPipeWrapper.IO;
 
 namespace ExampleCLI
 {
@@ -18,7 +19,7 @@ namespace ExampleCLI
 
         public MyServer(string pipeName)
         {
-            var server = new NamedPipeServer<MyMessage>(pipeName);
+            var server = new NamedPipeServer<MyMessage>(pipeName, new BinaryFormatterSerializer<MyMessage>());
             server.ClientConnected += OnClientConnected;
             server.ClientDisconnected += OnClientDisconnected;
             server.ClientMessage += OnClientMessage;

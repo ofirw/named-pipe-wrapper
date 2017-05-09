@@ -16,42 +16,25 @@ namespace NamedPipeWrapper.IO
     /// <typeparam name="T">Reference type to serialize</typeparam>
     public class PipeStreamWriter<T> where T : class
     {
+        private readonly ISerializer<T> serializer;
         /// <summary>
         /// Gets the underlying <c>PipeStream</c> object.
         /// </summary>
         public PipeStream BaseStream { get; private set; }
 
-        private readonly BinaryFormatter _binaryFormatter = new BinaryFormatter();
-
         /// <summary>
         /// Constructs a new <c>PipeStreamWriter</c> object that writes to given <paramref name="stream"/>.
         /// </summary>
         /// <param name="stream">Pipe to write to</param>
-        public PipeStreamWriter(PipeStream stream)
+        /// <param name="serializer">Serializer to use</param>
+        public PipeStreamWriter(PipeStream stream, ISerializer<T> serializer)
         {
+            this.serializer = serializer;
             BaseStream = stream;
         }
 
         #region Private stream writers
-
-        /// <exception cref="SerializationException">An object in the graph of type parameter <typeparamref name="T"/> is not marked as serializable.</exception>
-        private byte[] Serialize(T obj)
-        {
-            try
-            {
-                using (var memoryStream = new MemoryStream())
-                {
-                    _binaryFormatter.Serialize(memoryStream, obj);
-                    return memoryStream.ToArray();
-                }
-            }
-            catch
-            {
-                //if any exception in the serialize, it will stop named pipe wrapper, so there will ignore any exception.
-                return null;
-            }
-        }
-
+        
         private void WriteLength(int len)
         {
             var lenbuf = BitConverter.GetBytes(IPAddress.HostToNetworkOrder(len));
@@ -77,7 +60,7 @@ namespace NamedPipeWrapper.IO
         /// <exception cref="SerializationException">An object in the graph of type parameter <typeparamref name="T"/> is not marked as serializable.</exception>
         public void WriteObject(T obj)
         {
-            var data = Serialize(obj);
+            var data = this.serializer.Serialize(obj);
             WriteLength(data.Length);
             WriteObject(data);
             Flush();

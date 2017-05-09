@@ -16,6 +16,7 @@ namespace NamedPipeWrapper.IO
     /// <typeparam name="T">Reference type to deserialize data to</typeparam>
     public class PipeStreamReader<T> where T : class
     {
+        private readonly ISerializer<T> serializer;
         /// <summary>
         /// Gets the underlying <c>PipeStream</c> object.
         /// </summary>
@@ -32,8 +33,10 @@ namespace NamedPipeWrapper.IO
         /// Constructs a new <c>PipeStreamReader</c> object that reads data from the given <paramref name="stream"/>.
         /// </summary>
         /// <param name="stream">Pipe to read from</param>
-        public PipeStreamReader(PipeStream stream)
+        /// <param name="serializer">De-Serializer to use</param>
+        public PipeStreamReader(PipeStream stream, ISerializer<T> serializer)
         {
+            this.serializer = serializer;
             BaseStream = stream;
             IsConnected = stream.IsConnected;
         }
@@ -66,10 +69,7 @@ namespace NamedPipeWrapper.IO
         {
             var data = new byte[len];
             BaseStream.Read(data, 0, len);
-            using (var memoryStream = new MemoryStream(data))
-            {
-                return (T) _binaryFormatter.Deserialize(memoryStream);
-            }
+            return this.serializer.Deserialize(data);
         }
 
         #endregion

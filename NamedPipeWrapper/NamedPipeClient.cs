@@ -20,7 +20,8 @@ namespace NamedPipeWrapper
         /// </summary>
         /// <param name="pipeName">Name of the server's pipe</param>
         /// <param name="serverName">server name default is local.</param>
-        public NamedPipeClient(string pipeName,string serverName=".") : base(pipeName, serverName)
+        public NamedPipeClient(string pipeName, ISerializer<TReadWrite> serializer, string serverName = ".") 
+            : base(pipeName, serverName, serializer, serializer)
         {
         }
     }
@@ -57,6 +58,8 @@ namespace NamedPipeWrapper
         public event PipeExceptionEventHandler Error;
 
         private readonly string _pipeName;
+        private readonly ISerializer<TRead> deserializer;
+        private readonly ISerializer<TWrite> serializer;
         private NamedPipeConnection<TRead, TWrite> _connection;
 
         private readonly AutoResetEvent _connected = new AutoResetEvent(false);
@@ -73,9 +76,11 @@ namespace NamedPipeWrapper
         /// </summary>
         /// <param name="pipeName">Name of the server's pipe</param>
         /// <param name="serverName">the Name of the server, default is  local machine</param>
-        public NamedPipeClient(string pipeName,string serverName)
+        public NamedPipeClient(string pipeName,string serverName, ISerializer<TRead> deserializer, ISerializer<TWrite> serializer )
         {
             _pipeName = pipeName;
+            this.deserializer = deserializer;
+            this.serializer = serializer;
             _serverName = serverName;
             AutoReconnect = true;
         }
@@ -151,7 +156,8 @@ namespace NamedPipeWrapper
         private void ListenSync()
         {
             // Get the name of the data pipe that should be used from now on by this NamedPipeClient
-            var handshake = PipeClientFactory.Connect<string, string>(_pipeName,_serverName);
+            var serializer = new BinaryFormatterSerializer<string>();
+            var handshake = PipeClientFactory.Connect<string, string>(this._pipeName,this._serverName, serializer, serializer);
             var dataPipeName = handshake.ReadObject();
             handshake.Close();
 
@@ -159,7 +165,7 @@ namespace NamedPipeWrapper
             var dataPipe = PipeClientFactory.CreateAndConnectPipe(dataPipeName,_serverName);
 
             // Create a Connection object for the data pipe
-            _connection = ConnectionFactory.CreateConnection<TRead, TWrite>(dataPipe);
+            _connection = ConnectionFactory.CreateConnection<TRead, TWrite>(dataPipe, this.deserializer, this.serializer);
             _connection.Disconnected += OnDisconnected;
             _connection.ReceiveMessage += OnReceiveMessage;
             _connection.Error += ConnectionOnError;
@@ -209,11 +215,11 @@ namespace NamedPipeWrapper
 
     static class PipeClientFactory
     {
-        public static PipeStreamWrapper<TRead, TWrite> Connect<TRead, TWrite>(string pipeName,string serverName)
+        public static PipeStreamWrapper<TRead, TWrite> Connect<TRead, TWrite>(string pipeName, string serverName, ISerializer<TRead> deserializer, ISerializer<TWrite> serializer)
             where TRead : class
             where TWrite : class
         {
-            return new PipeStreamWrapper<TRead, TWrite>(CreateAndConnectPipe(pipeName,serverName));
+            return new PipeStreamWrapper<TRead, TWrite>(CreateAndConnectPipe(pipeName,serverName), deserializer, serializer);
         }
 
         public static NamedPipeClientStream CreateAndConnectPipe(string pipeName, string serverName)

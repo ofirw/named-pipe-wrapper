@@ -60,11 +60,11 @@ namespace NamedPipeWrapper
 
         private bool _notifiedSucceeded;
 
-        internal NamedPipeConnection(int id, string name, PipeStream serverStream)
+        internal NamedPipeConnection(int id, string name, PipeStream serverStream, ISerializer<TRead> deserializer, ISerializer<TWrite> serializer)
         {
             Id = id;
             Name = name;
-            _streamWrapper = new PipeStreamWrapper<TRead, TWrite>(serverStream);
+            _streamWrapper = new PipeStreamWrapper<TRead, TWrite>(serverStream, deserializer, serializer);
         }
 
         /// <summary>
@@ -198,11 +198,11 @@ namespace NamedPipeWrapper
     {
         private static int _lastId;
 
-        public static NamedPipeConnection<TRead, TWrite> CreateConnection<TRead, TWrite>(PipeStream pipeStream)
+        public static NamedPipeConnection<TRead, TWrite> CreateConnection<TRead, TWrite>(PipeStream pipeStream, ISerializer<TRead> deserializer, ISerializer<TWrite> serializer)
             where TRead : class
             where TWrite : class
         {
-            return new NamedPipeConnection<TRead, TWrite>(++_lastId, "Client " + _lastId, pipeStream);
+            return new NamedPipeConnection<TRead, TWrite>(++_lastId, "Client " + _lastId, pipeStream, deserializer, serializer);
         }
     }
 

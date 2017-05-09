@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using NamedPipeWrapper;
+using NamedPipeWrapper.IO;
 
 namespace ExampleCLI
 {
@@ -21,7 +22,7 @@ namespace ExampleCLI
 
         public MyClient(string pipeName)
         {
-            var client = new NamedPipeClient<MyMessage>(pipeName);
+            var client = new NamedPipeClient<MyMessage>(pipeName, new BinaryFormatterSerializer<MyMessage>());
             client.ServerMessage += OnServerMessage;
             client.Error += OnError;
             client.Start();
